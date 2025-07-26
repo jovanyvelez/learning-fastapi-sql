@@ -3,17 +3,17 @@
 
 📚 PROPÓSITO EDUCATIVO:
 Este archivo demuestra mejores prácticas para manejar configuración en aplicaciones web:
-- Variables de entorno para diferentes ambientes (dev, test, prod)
-- Patrón Singleton para configuración global
+- Variables de entorno
 - Separación de configuración del código
+- Configuración centralizada y fácil de mantener
 
 🎯 CONCEPTOS QUE APRENDERÁS:
 - ✅ Variables de entorno con python-dotenv
-- ✅ Patrón Singleton con @lru_cache()
-- ✅ @property para valores computados
+- ✅ Constructor __init__() para inicialización
 - ✅ Valores por defecto para configuración
 - ✅ Configuración específica por base de datos
 - ✅ Separación de configuración y código
+- ✅ Instanciación simple y directa
 
 📁 ARCHIVO .env:
 Crea un archivo .env en la raíz del proyecto con:
@@ -24,7 +24,6 @@ SQL_ECHO=false
 ⚠️  NUNCA subas archivos .env a git (contienen secretos)
 """
 import os
-from functools import lru_cache
 
 # 📦 python-dotenv carga variables del archivo .env
 from dotenv import load_dotenv
@@ -37,11 +36,18 @@ class Settings:
     """
     ⚙️  CLASE DE CONFIGURACIÓN: Centraliza toda la configuración de la app
     
+    🎓 ENFOQUE EDUCATIVO SIMPLE:
+    Usamos __init__() porque es:
+    - Familiar para estudiantes que aprenden OOP
+    - Más directo: todo se calcula una vez al crear la instancia
+    - Sin complejidad adicional de patrones avanzados
+    - Eficiente: los valores se calculan una sola vez
+    
     Conceptos que aprenderás:
     - Variables de entorno con os.getenv()
     - Valores por defecto para desarrollo local
     - Configuración específica de base de datos
-    - @property para valores computados dinámicamente
+    - Constructor __init__() para inicialización
     
     🌍 VARIABLES DE ENTORNO:
     Permiten diferentes configuraciones sin cambiar código:
@@ -50,53 +56,57 @@ class Settings:
     - Producción: DATABASE_FILE=prod.db
     """
     
-    # 📁 Configuración de Base de Datos
-    # os.getenv("VARIABLE", "default") busca la variable en .env o usa default
-    DATABASE_FILE: str = os.getenv("DATABASE_FILE", "marvel.db")
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{DATABASE_FILE}")
-    
-    # 🔧 Configuración específica de SQLite
-    # CHECK_SAME_THREAD=False permite usar SQLite desde múltiples threads
-    CHECK_SAME_THREAD: bool = os.getenv("CHECK_SAME_THREAD", "false").lower() == "true"
-    
-    # 🐛 SQL_ECHO=True muestra las consultas SQL en la consola (útil para debugging)
-    SQL_ECHO: bool = os.getenv("SQL_ECHO", "false").lower() == "true"
-        
-    @property
-    def connect_args(self) -> dict:
+    def __init__(self):
         """
-        🔌 ARGUMENTOS DE CONEXIÓN: Configuración específica para SQLite
+        🏗️ CONSTRUCTOR: Inicializa toda la configuración al crear la instancia
         
-        @property convierte este método en un atributo computado.
-        Se calcula dinámicamente cada vez que se accede.
-        
-        📝 USO: settings.connect_args
-        📊 RETORNA: {"check_same_thread": False}
+        📝 ¿Por qué en __init__()?
+        - Se ejecuta una sola vez al crear Settings()
+        - Todos los valores se calculan inmediatamente
+        - Más eficiente que calcular cada vez que se accede
+        - Más fácil de entender para estudiantes principiantes
         """
-        return {"check_same_thread": self.CHECK_SAME_THREAD}
+        
+        # 📁 Configuración de Base de Datos
+        # os.getenv("VARIABLE", "default") busca la variable en .env o usa default
+        self.DATABASE_FILE = os.getenv("DATABASE_FILE", "marvel.db")
+        self.DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{self.DATABASE_FILE}")
+        
+        # 🔧 Configuración específica de SQLite
+        # CHECK_SAME_THREAD=False permite usar SQLite desde múltiples threads
+        # 
+        # 🧵 ¿Qué es un thread (hilo)?
+        # Un thread es como una "línea de ejecución" independiente en tu programa
+        # Imagina que tu programa puede hacer varias tareas al mismo tiempo:
+        # Thread 1: Procesar request del usuario A
+        # Thread 2: Procesar request del usuario B  
+        # Thread 3: Procesar request del usuario C
+        # Cada uno trabaja en paralelo, como tener varios empleados atendiendo clientes
+        # 
+        # 🧵 ¿Qué es CHECK_SAME_THREAD?
+        # Por defecto, SQLite solo permite acceso desde el thread que creó la conexión
+        # En aplicaciones web (como FastAPI), diferentes requests pueden usar threads diferentes
+        # Si CHECK_SAME_THREAD=True (default), obtendríamos errores como:
+        # "SQLite objects created in a thread can only be used in that same thread"
+        # 
+        # 🔓 ¿Por qué False?
+        # - FastAPI puede manejar requests en diferentes threads
+        # - SQLModel/SQLAlchemy gestiona las conexiones de forma segura
+        # - False permite que la misma conexión sea usada por múltiples threads
+        # 
+        # ⚠️  IMPORTANTE: Solo es seguro porque SQLModel maneja la sincronización
+        self.CHECK_SAME_THREAD = os.getenv("CHECK_SAME_THREAD", "false").lower() == "true"
+        
+        # 🐛 SQL_ECHO=True muestra las consultas SQL en la consola (útil para debugging)
+        self.SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true"
+        
+        # 🔌 Argumentos de conexión - se calcula una vez y se reutiliza
+        # Más eficiente que calcular dinámicamente cada vez que se accede
+        self.connect_args = {"check_same_thread": self.CHECK_SAME_THREAD}
 
 
-@lru_cache()
-def get_settings() -> Settings:
-    """
-    🎯 PATRÓN SINGLETON: Una sola instancia de configuración en toda la app
-    
-    Conceptos que aprenderás:
-    - @lru_cache() cachea el resultado de la función
-    - Singleton garantiza una sola instancia global
-    - Mejora performance (no recrea Settings cada vez)
-    - Consistencia en toda la aplicación
-    
-    💡 ¿Por qué Singleton para configuración?
-    - Configuración no cambia durante la ejecución
-    - Evita crear múltiples objetos Settings
-    - Garantiza que toda la app use la misma configuración
-    
-    📝 USO: settings = get_settings()
-    """
-    return Settings()
+# 🌍 INSTANCIA GLOBAL: Simple y directa
+# Esta es la forma más clara para estudiantes principiantes
+# Crear Settings() es rápido y no necesita optimización compleja
+settings = Settings()
 
-
-# 🌍 INSTANCIA GLOBAL: Disponible en toda la aplicación
-# Esta es la forma recomendada de acceder a la configuración
-settings = get_settings()
